@@ -127,4 +127,8 @@ void Chassis_StrafeRightUntilLine(float speed, uint32_t timeout_ms);
  */
 void Circle_AlignBySpeed(float max_speed_mps, float hold_yaw_deg);
 
+
+/* ========== 电机排障诊断（调试用，用完删除：本声明 + Chassis.c 末尾整块 + main 里的调用） ========== */
+void Chassis_Diag_Run(void);
+
 #endif

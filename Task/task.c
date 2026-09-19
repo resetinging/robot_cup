@@ -21,27 +21,18 @@ float task1_move_distance_Y_m[5] =
     0.27f
 };
 
-#ifdef TWO_IS_ROUND
 float task2_move_distance_X_m[3] = 
 {
-    -0.15f,
-    0.7f,
+    0.60f,
+    0.30f,
     0.30f
 };
-#else
-float task2_move_distance_X_m[3] = 
-{
-    -0.15f,
-    0.71f,
-    0.30f
-};
-#endif
 
 float task2_move_distance_Y_m[3] = 
 {
+    -0.17f,
     0.0f,
-    0.0f,
-    0.05f
+    0.13f
 };
 
 bool task1_is_align[5]=

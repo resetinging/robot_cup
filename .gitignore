@@ -59,3 +59,7 @@ Thumbs.db
 # ===================== Python =====================
 __pycache__/
 *.pyc
+
+# ===================== CMake / STM32CubeIDE for VS Code =====================
+build/
+mx.scratch/

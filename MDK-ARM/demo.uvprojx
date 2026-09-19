@@ -1121,7 +1121,7 @@
               <FileType>5</FileType>
               <FilePath>..\Task\color_reg.h</FilePath>
             </File>
-</Files>
+          </Files>
         </Group>
         <Group>
           <GroupName>::CMSIS</GroupName>

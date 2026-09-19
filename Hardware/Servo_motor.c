@@ -1,6 +1,7 @@
 ﻿#include "Servo_motor.h"
 #include "tim.h"
 #include "usart.h"
+#include "usart_sent.h"   /* uart_printf：Keil(AC5) 隐式声明可通过，GCC 14 必须显式包含 */
 #include <stdio.h>
 #include <string.h>
 
@@ -15,7 +16,7 @@
 #define SERVO_COMMAND_MAX_LEN          24U
 #define SERVO_TX_QUEUE_DEPTH           4U
 //67 48 25
-#define SERVO_BUS_1          44U
+#define SERVO_BUS_1          49U
 #define SERVO_BUS_2          SERVO_BUS_1+72
 #define SERVO_BUS_3          SERVO_BUS_2+72
 #define SERVO_BUS_4          SERVO_BUS_3+72
@@ -262,21 +263,40 @@ void ServoBus_Test(void)
     // HAL_Delay(2000U);
     // ServoBus_SetAngle(SERVO_BUS_5);
     // HAL_Delay(2000U);
+    HAL_Delay(5000);
+    Servo_SetAngle(87);
+    uart_printf("%d\r\n", 87U);
+    HAL_Delay(5000);
+    Servo_SetAngle(88);
+    uart_printf("%d\r\n", 88U);
+
+    HAL_Delay(5000);
     Servo_SetAngle(89);
+    uart_printf("%d\r\n", 89U);
+
     HAL_Delay(5000);
     Servo_SetAngle(90);
+    uart_printf("%d\r\n", 90U);
+
     HAL_Delay(5000);
     Servo_SetAngle(91);
+    uart_printf("%d\r\n", 91U);
     HAL_Delay(5000);
+
     Servo_SetAngle(92);
-    HAL_Delay(5000);
+    uart_printf("%d\r\n", 92U);
+        HAL_Delay(5000);
+
     Servo_SetAngle(93);
+        uart_printf("%d\r\n", 93U);
+
     HAL_Delay(5000);
+
     Servo_SetAngle(94);
     HAL_Delay(5000);
 
 
 
-    HAL_Delay(100000);
+    HAL_Delay(1000000);
     
 }

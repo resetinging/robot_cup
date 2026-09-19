@@ -237,7 +237,7 @@ void Control_YawInit(void)
 
     /* PID 参数在这里修改 */
     PID_Init(&Control_StaticAngle.pid,
-            10.5f,
+            9.0f,
             0.15f,
             0.05f,
             -Control_StaticAngle.max_omega_deg_s,

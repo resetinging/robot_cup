@@ -317,58 +317,64 @@ void Chassis_GetBodySpeed(float *vx, float *vy, float *omega)
 void Chassis_Test(void)
 {
 #if 1
-    float duration_ms;
-    uint32_t wait_ms;
-    uint32_t start_tick;
+    // float duration_ms;
+    // uint32_t wait_ms;
+    // uint32_t start_tick;
 
-    Chassis_Setdefaultspeed(0.2f);
-    do {
-        duration_ms = Chassis_MovePos(0.0f, 0.5f, 0.0f);
-        if (duration_ms < 0.0f) {
-            Chassis_Process();
-            HAL_Delay(1U);
-        }
-    } while (duration_ms < 0.0f);
-    if (duration_ms > 0.0f) {
-        wait_ms = (uint32_t)(duration_ms + 0.5f);
-        start_tick = HAL_GetTick();
-        while ((uint32_t)(HAL_GetTick() - start_tick) < wait_ms) {
-            Chassis_Process();
-            HAL_Delay(1U);
-        }
-    }
+    // Chassis_Move(0.0f,0.2f,0.0f);
+    // HAL_Delay(10000);
+    Emm_V5_Restore_Motor(0x01);
+    HAL_Delay(5000);
+    // Emm_V5_MMCL_Trig_Encoder_Cal(0x01);
+    // HAL_Delay(5000);
+    // Chassis_Setdefaultspeed(0.2f);
+    // do {
+    //     duration_ms = Chassis_MovePos(0.0f, 0.5f, 0.0f);
+    //     if (duration_ms < 0.0f) {
+    //         Chassis_Process();
+    //         HAL_Delay(1U);
+    //     }
+    // } while (duration_ms < 0.0f);
+    // if (duration_ms > 0.0f) {
+    //     wait_ms = (uint32_t)(duration_ms + 0.5f);
+    //     start_tick = HAL_GetTick();
+    //     while ((uint32_t)(HAL_GetTick() - start_tick) < wait_ms) {
+    //         Chassis_Process();
+    //         HAL_Delay(1U);
+    //     }
+    // }
 
-    do {
-        duration_ms = Chassis_MovePos(0.1f, 0.0f, 0.0f);
-        if (duration_ms < 0.0f) {
-            Chassis_Process();
-            HAL_Delay(1U);
-        }
-    } while (duration_ms < 0.0f);
-    if (duration_ms > 0.0f) {
-        wait_ms = (uint32_t)(duration_ms + 0.5f);
-        start_tick = HAL_GetTick();
-        while ((uint32_t)(HAL_GetTick() - start_tick) < wait_ms) {
-            Chassis_Process();
-            HAL_Delay(1U);
-        }
-    }
+    // do {
+    //     duration_ms = Chassis_MovePos(0.1f, 0.0f, 0.0f);
+    //     if (duration_ms < 0.0f) {
+    //         Chassis_Process();
+    //         HAL_Delay(1U);
+    //     }
+    // } while (duration_ms < 0.0f);
+    // if (duration_ms > 0.0f) {
+    //     wait_ms = (uint32_t)(duration_ms + 0.5f);
+    //     start_tick = HAL_GetTick();
+    //     while ((uint32_t)(HAL_GetTick() - start_tick) < wait_ms) {
+    //         Chassis_Process();
+    //         HAL_Delay(1U);
+    //     }
+    // }
 
-    do {
-        duration_ms = Chassis_MovePos(0.0f, 0.0f, 90.0f);
-        if (duration_ms < 0.0f) {
-            Chassis_Process();
-            HAL_Delay(1U);
-        }
-    } while (duration_ms < 0.0f);
-    if (duration_ms > 0.0f) {
-        wait_ms = (uint32_t)(duration_ms + 0.5f);
-        start_tick = HAL_GetTick();
-        while ((uint32_t)(HAL_GetTick() - start_tick) < wait_ms) {
-            Chassis_Process();
-            HAL_Delay(1U);
-        }
-    }
+    // do {
+    //     duration_ms = Chassis_MovePos(0.0f, 0.0f, 90.0f);
+    //     if (duration_ms < 0.0f) {
+    //         Chassis_Process();
+    //         HAL_Delay(1U);
+    //     }
+    // } while (duration_ms < 0.0f);
+    // if (duration_ms > 0.0f) {
+    //     wait_ms = (uint32_t)(duration_ms + 0.5f);
+    //     start_tick = HAL_GetTick();
+    //     while ((uint32_t)(HAL_GetTick() - start_tick) < wait_ms) {
+    //         Chassis_Process();
+    //         HAL_Delay(1U);
+    //     }
+    // }
 
     // HAL_Delay(Chassis_MovePos(0.0f, 0.5f, 0.0f));
     // HAL_Delay(Chassis_MovePos(0.1f, 0.0f, 0.0f));
@@ -528,4 +534,182 @@ void Circle_AlignBySpeed(float max_speed_mps, float hold_yaw_deg)
     circle_speed_active = 0U;        /* 速度模式结束 */
     Chassis_stop();                  /* 收到完成帧，立刻停止 */
     Circle_SendDone();               /* 回传 CIRCLE_DONE 给上位机确认 */
+}
+
+
+/* ============================================================
+ * 电机排障诊断（调试用）
+ * ------------------------------------------------------------------
+ * 用法：
+ *   1. main() 里 Chassis_Init(&huart1); 之后调用 Chassis_Diag_Run();
+ *   2. 串口助手看 USART2(115200) 打印结果；
+ *   3. 排查完删除：main 里的调用 + Chassis.h 里的声明 + 本文件末尾整块。
+ *
+ * 对地址 1~4 逐个执行：
+ *   a) 停止命令回显测试 —— 驱动器活着会回 [addr] FE 98 00 6B
+ *   b) 读编码器 0x30     —— 正常回 9 字节 [addr] 30 .. 6B
+ *   c) 读状态标志 0x3A   —— 对比正常/报警单元的原始字节
+ *   d) 清堵转保护 0x0E 0x52
+ *   e) 单电机空转 0.8s   —— 看哪个地址的电机真的会转（建议架空/空转测试）
+ *
+ * 说明：查询帧用阻塞发送，不依赖 TIM2 发送泵；应答用 USART1 接收中断。
+ * ============================================================ */
+
+static uint8_t  s_diag_rx_buf[64];           /* 应答缓存 */
+static volatile uint16_t s_diag_rx_len = 0U; /* 已收字节数 */
+static volatile uint8_t  s_diag_rx_active = 0U;
+static uint8_t  s_diag_rx_one = 0U;
+
+/* USART1 逐字节接收回调（HAL 弱函数，仅排障期间生效；删除本块即消失） */
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+    if ((huart == &huart1) && (s_diag_rx_active != 0U))
+    {
+        if (s_diag_rx_len < (uint16_t)sizeof(s_diag_rx_buf))
+        {
+            s_diag_rx_buf[s_diag_rx_len++] = s_diag_rx_one;
+        }
+        (void)HAL_UART_Receive_IT(&huart1, &s_diag_rx_one, 1U);
+    }
+}
+
+static void Chassis_Diag_FlushRx(void)
+{
+    s_diag_rx_len = 0U;
+}
+
+/* 在应答缓存里找“以 addr 开头、以最后那个 0x6B 结尾”的完整帧，返回帧长；找不到返回 0 */
+static uint16_t Chassis_Diag_FindFrame(uint8_t addr, uint8_t *out)
+{
+    uint16_t i;
+    uint16_t k;
+    if (s_diag_rx_len == 0U) return 0U;
+
+    for (i = s_diag_rx_len; i > 0U; i--)
+    {
+        if (s_diag_rx_buf[i - 1U] == 0x6B)
+        {
+            for (k = i - 1U; k > 0U; k--)
+            {
+                if (s_diag_rx_buf[k - 1U] == addr)
+                {
+                    memcpy(out, &s_diag_rx_buf[k - 1U], (size_t)(i - (k - 1U)));
+                    return (uint16_t)(i - (k - 1U));
+                }
+                if ((i - (k - 1U)) >= 12U) break; /* 帧头离 0x6B 不会超过 12 字节 */
+            }
+            return 0U;
+        }
+    }
+    return 0U;
+}
+
+static void Chassis_Diag_Send(const uint8_t *frame, uint16_t len)
+{
+    (void)HAL_UART_Transmit(&huart1, (uint8_t *)frame, len, 200U);
+    HAL_Delay(2U); /* 帧间隔，留给驱动器处理 */
+}
+
+static void Chassis_Diag_PrintHex(const char *tag, const uint8_t *buf, uint16_t len)
+{
+    /* 攒成一行再一次性打印，避免 uart_printf(DMA) 忙时丢字节 */
+    static const char hex_digit[] = "0123456789ABCDEF";
+    char line[96];
+    uint16_t i;
+    uint16_t p = 0U;
+
+    while ((tag[p] != '\0') && (p + 1U < sizeof(line))) { line[p] = tag[p]; p++; }
+    for (i = 0U; (i < len) && (p + 3U < sizeof(line)); i++)
+    {
+        line[p++] = hex_digit[(buf[i] >> 4) & 0x0FU];
+        line[p++] = hex_digit[buf[i] & 0x0FU];
+        line[p++] = ' ';
+    }
+    line[p++] = '\r';
+    line[p++] = '\n';
+    line[p] = '\0';
+    uart_printf("%s", line);
+}
+
+void Chassis_Diag_Run(void)
+{
+    uint8_t  addr;
+    uint8_t  frame[16];
+    uint8_t  resp[32];
+    uint16_t rlen;
+    uint32_t t0;
+
+    uart_printf("\r\n========== Motor Diag ==========\r\n");
+
+    /* 1) 先让电机发送队列静下来（不依赖 TIM2 泵） */
+    Emm_V5_TxDiscardPending();
+    t0 = HAL_GetTick();
+    while ((Emm_V5_TxGetFreeSlots() < 14U) && ((HAL_GetTick() - t0) < 100U))
+    {
+        HAL_Delay(2U);
+    }
+    HAL_Delay(20U);
+
+    /* 2) 启动 USART1 接收中断 */
+    s_diag_rx_active = 1U;
+    Chassis_Diag_FlushRx();
+    (void)HAL_UART_Receive_IT(&huart1, &s_diag_rx_one, 1U);
+
+    for (addr = 1U; addr <= 4U; addr++)
+    {
+        uart_printf("----- addr=%u -----\r\n", (unsigned)addr);
+
+        /* a) 停止命令回显：驱动器活着会回 [addr] FE 98 00 6B */
+        Chassis_Diag_FlushRx();
+        frame[0] = addr; frame[1] = 0xFE; frame[2] = 0x98;
+        frame[3] = 0x00; frame[4] = 0x6B;
+        Chassis_Diag_Send(frame, 5U);
+        HAL_Delay(30U);
+        rlen = Chassis_Diag_FindFrame(addr, resp);
+        if (rlen != 0U) { Chassis_Diag_PrintHex("stop-echo: ", resp, rlen); }
+        else            { uart_printf("stop-echo: NONE (该地址无响应)\r\n"); }
+
+        /* b) 读编码器：正常回 9 字节 [addr] 30 .. 6B */
+        Chassis_Diag_FlushRx();
+        frame[0] = addr; frame[1] = 0x30; frame[2] = 0x00; frame[3] = 0x6B;
+        Chassis_Diag_Send(frame, 4U);
+        HAL_Delay(30U);
+        rlen = Chassis_Diag_FindFrame(addr, resp);
+        if (rlen != 0U) { Chassis_Diag_PrintHex("encoder : ", resp, rlen); }
+        else            { uart_printf("encoder : NONE\r\n"); }
+
+        /* c) 读状态标志 S_FLAG=0x3A：和正常单元对比原始字节 */
+        Chassis_Diag_FlushRx();
+        frame[0] = addr; frame[1] = 0x3A; frame[2] = 0x6B;
+        Chassis_Diag_Send(frame, 3U);
+        HAL_Delay(30U);
+        rlen = Chassis_Diag_FindFrame(addr, resp);
+        if (rlen != 0U) { Chassis_Diag_PrintHex("flag    : ", resp, rlen); }
+        else            { uart_printf("flag    : NONE\r\n"); }
+
+        /* d) 清除堵转保护 */
+        Chassis_Diag_FlushRx();
+        frame[0] = addr; frame[1] = 0x0E; frame[2] = 0x52; frame[3] = 0x6B;
+        Chassis_Diag_Send(frame, 4U);
+        HAL_Delay(20U);
+
+        /* e) 单电机空转 0.8s（snF=0 立即启动，不依赖同步帧） */
+        uart_printf("spin 0.8s (200RPM)...\r\n");
+        Chassis_Diag_FlushRx();
+        frame[0] = addr; frame[1] = 0xF6; frame[2] = 0x00;
+        frame[3] = 0x00; frame[4] = 0xC8; /* 200 RPM */
+        frame[5] = 0x00; frame[6] = 0x00; /* acc=0, snF=0 */
+        frame[7] = 0x6B;
+        Chassis_Diag_Send(frame, 8U);
+        HAL_Delay(800U);
+        frame[0] = addr; frame[1] = 0xFE; frame[2] = 0x98;
+        frame[3] = 0x00; frame[4] = 0x6B;
+        Chassis_Diag_Send(frame, 5U);
+        HAL_Delay(100U);
+    }
+
+    /* 3) 收尾：关闭接收中断 */
+    s_diag_rx_active = 0U;
+    (void)HAL_UART_AbortReceive(&huart1);
+    uart_printf("========== Motor Diag End ==========\r\n");
 }

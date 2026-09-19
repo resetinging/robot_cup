@@ -104,7 +104,7 @@ char task2_abc_order[4] = {0}; /* 任务2现场奖杯摆放(右->左)，如 "CBA
 uint8_t task1_color_started = 0U; /* 循迹阶段是否已请求颜色识别 */
 uint8_t task1_plan_ready = 0U;    /* plan1 是否已生成 */
 uint8_t task2_plan_ready = 0U;    /* plan2 是否已生成 */
-uint8_t task2_track_stop = 0U;    /* 1=任务2循迹超时，停止循迹便于排查 */
+uint8_t task2_track_stop = 0U;    /* 1 = 任务2循迹超时，停止循迹便于排查 */
 #endif
 
 #ifdef start_from_task1
@@ -246,6 +246,21 @@ int fputc(int ch, FILE *stream)
   return ch;
 }
 
+/* GCC(newlib) 下的 printf 重定向：syscalls.c 的 _write() 会调用 __io_putchar() */
+#ifdef __GNUC__
+int __io_putchar(int ch)
+{
+  uint8_t c = (uint8_t)ch;
+  HAL_UART_Transmit(&huart2, &c, 1, 0xFFFF);
+  return ch;
+}
+
+int __io_getchar(void)
+{
+  return -1;
+}
+#endif
+
 /* 二维码请求轮询：没收到就每隔固定时间重发一次 AA 05 0A，总时长不超过 timeout_ms。
  * 收到返回 1，超时返回 0（调用方用默认值兜底）。 */
 static uint8_t WaitQRReady(uint32_t timeout_ms)
@@ -384,7 +399,6 @@ int main(void)
     static const uint8_t boot_msg[] = "UART2 OK\r\n";
     (void)HAL_UART_Transmit(&huart2, (uint8_t *)boot_msg, sizeof(boot_msg) - 1U, 200U);
   }
-
   icm_init();
 
   // HAL_GPIO_TogglePin(DEBUG_LED_PORT, DEBUG_LED_PIN);
@@ -393,15 +407,23 @@ int main(void)
   // HAL_GPIO_TogglePin(DEBUG_LED_PORT, DEBUG_LED_PIN);
 
   Chassis_Init(&huart1);
+  // Chassis_Diag_Run(); /* 电机排障诊断（调试用，用完删掉这一行） */
+  // HAL_Delay(100);
+  // Chassis_Test();
   Gray_Init();
-
   Usart6_RxInit(); /* 串口6接收中断：上位机(K230)命令帧（x/y/yaw + 完毕帧 + 二维码/颜色/字母） */
 
   // printf("System start\r\n");
   HAL_TIM_Base_Start_IT(&htim2);
-  // ServoBus_Test();
+
+  // while(1)
+  // {
+    
+  // }
+
   Servo_Init();
-  // Chassis_Test();
+  // ServoBus_Test();
+  
 
   // Control_test();
   /* USER CODE END 2 */
@@ -654,10 +676,9 @@ int main(void)
           HAL_Delay(1500);
           }
 
-          Chassis_MovePosBlocking_Set_V(0.002f, 0.05f, 0.0f, 0.2f); /* 前进） */
+          Chassis_MovePosBlocking_Set_V(0.005f, 0.05f, 0.0f, 0.2f); /* 前进） */
           Chassis_stop();
-          Chassis_MovePosBlocking(0.0f, -0.10f, 0.0f); /* 后退 */
-
+          Chassis_MovePosBlocking(0.0f, -0.10f, 0.0f); /* 后退 *///标记
 
           task1_point_index++;
 #endif
@@ -756,19 +777,18 @@ int main(void)
         }
         if (task2_point_index == 0U)
         {
-          Control_StaticTurn(0.0f, 5000U);
+          Control_StaticTurn(-90.0f, 5000U);
           HAL_Delay(100);
           #ifndef TWO_IS_ROUND
           Chassis_MovePosBlocking_Set_V(0.0f, -0.05f, 0.0f, 0.2f);
           #else
-          Chassis_MovePosBlocking_Set_V(0.0f, -0.11f, 0.0f, 0.2f);
           #endif
           Chassis_MovePosBlocking(task2_move_distance_X_m[task2_point_index],
                                   task2_move_distance_Y_m[task2_point_index],
                                   0.0f);
           Chassis_stop();
           
-          Control_StaticTurn(0.0f, 5000U);
+          Control_StaticTurn(-90.0f, 5000U);
           #ifndef TWO_IS_ROUND
           Chassis_MovePosBlocking_Set_V(0.0f, 0.05f, 0.0f, 0.2f); /* 前进 */
           #endif
@@ -802,15 +822,13 @@ int main(void)
         }
         else if (task2_point_index == 1U)
         {
-          Chassis_MovePosBlocking(0.35f, 0.0f, 0.0f);
-          HAL_Delay(100);
           Control_StaticTurn(-90.0f, 5000U);
           HAL_Delay(100);
           Chassis_MovePosBlocking(task2_move_distance_X_m[task2_point_index],
                                   task2_move_distance_Y_m[task2_point_index],
                                   0.0f);
           Chassis_stop();
-          Servo_SetAngle(83);
+          Servo_SetAngle(80);
           Control_StaticTurn(-90.0f, 5000U);
           ServoBus_SetAngle(Servo_angle[slot - 1U]);  /* 舵机转到指定位置 */
           Chassis_MovePosBlocking_Set_V(0.0f, 0.04f, 0.0f, 0.15f); /* 前进 */
@@ -874,14 +892,7 @@ int main(void)
         else if (task2_is_align[task2_point_index] == 2)
         {
           /* ---- 对圆心（上位机只回传 x/y，无 yaw） ---- */
-          if (task2_point_index == 0U)
-          {
-            Control_StaticTurn(0.0f, 5000U);
-          }
-          else
-          {
-            Control_StaticTurn(-90.0f, 5000U);
-          }
+          Control_StaticTurn(-90.0f, 5000U);
 
 #ifdef CIRCLE_ALIGN_SPEED_MODE
           /* 速度控制模式：上位机定时下发 x/y 速度，收到完成帧立刻停车 */
@@ -889,22 +900,7 @@ int main(void)
           Circle_AlignBySpeed(0.1f,
                               (task2_point_index == 0U) ? 0.0f : -90.0f);
 #else
-          /* 位置控制模式（原有逻辑）：上位机回传 x/y 位置偏差 */
-          circle_flag = 1U;
-          Circle_SendRequest(); /* AA 02 0A：请求回传圆心 x/y */
-          while (circle_flag)   /* 一直等上位机发完毕帧(AA 00 0A)才结束 */
-          {
-            if (Circle_GetCorrection(&cmd_x, &cmd_y) != 0U)
-            {
-              uart_printf("circle x=%.1fcm y=%.1fcm\r\n",
-                          (double)cmd_x, (double)cmd_y);
-              Control_AlignTest(cmd_x, cmd_y, 0.0f); /* 只平移 x/y，不纠 yaw */
-              /* 阻塞式调整结束后，再向上位机请求下一次纠正 */
-              Circle_SendRequest();
-            }
-            HAL_Delay(200);
-          }
-          Circle_SendDone(); /* 对圆心调整完毕 */
+  
 #endif
 
           /* ③ 对圆心完成后的动作：前进 -> 舵机到指定位置 -> 再后退5cm */
@@ -912,11 +908,18 @@ int main(void)
           
           if (task2_point_index == 0U)
           {
-            Servo_SetAngle(90);
+            Servo_SetAngle(80);
             HAL_Delay(1000);
             Chassis_MovePosBlocking_Set_V(0.0f, 0.05f, 0.0f, 0.2f); /* 前进 */
+            Servo_SetAngle(88);
+            HAL_Delay(1000); 
+
             Servo_SetAngle(TWO_ANGLE);
             HAL_Delay(1000);   
+          }
+          else if (task2_point_index == 1U)
+          {
+            Chassis_MovePosBlocking_Set_V(0.0f, 0.0f, 0.0f, 0.2f); /* 前进 */   
           }
           else
           {
@@ -1051,7 +1054,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
             (track_sys.sensor_binary[2] == 0U))
         {
           Chassis_stop();
-          Kalman_SetYawDeg(-179.2f);
+          Kalman_SetYawDeg(-179.9f);
 /* 循迹到终点：推进状态机（plan1 未生成时由主循环/state22 用默认方案补齐） */
 #ifndef debug_in_color
           task1_state = 22;
@@ -1079,7 +1082,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
             else 
 #endif      
-            if (t1_servo_count >= 64U && t1_servo_index < 6U)
+            if (t1_servo_count >= 58U && t1_servo_index < 6U)
             {
               t1_servo_count = 0U;
               ServoBus_SetAngle(Servo_angle[t1_servo_index]);
@@ -1097,80 +1100,70 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
       {
         gray_flag = Grey_PID_Update();
 
-        if ((track_sys.sensor_binary[5] == 0U) &&
-            (track_sys.sensor_binary[6] == 0U) &&
-            (track_sys.sensor_binary[7] == 0U))
+        if (gray_flag == 0U)
         {
-          Chassis_stop();
-          Kalman_SetYawDeg(-2.0f);
-
-          if (task2_plan_ready != 0U)
+          static float task2_track_speed = 0.2f;
+          Chassis_TrackDifferential(task2_track_speed, Grey_Get_Output());
+          t2_servo_count++;
+          if (t2_servo_index < 3U)
           {
+            /* 第 t2_servo_index 次要接的字母 = task2_scheme[qr-1][t2_servo_index]
+              * 固定槽位：A->Servo_angle[1]  B->Servo_angle[2]  C->Servo_angle[0]
+              * 节奏：刚进入 state31 立即转第 1 个字母槽位，之后每 240 个循迹周期转下一个 */
+            uint8_t letter;
+            uint8_t angle_idx;
+
+            if (t2_servo_first_sent == 0U)
+            {
+              /* 刚进入 31：立即转到第 1 个字母对应的槽位 */
+              letter = Task2_GetSchemeTrophy(qr_task2_number, 0U);
+              if (letter == 0U)
+                angle_idx = 1U; /* A -> Servo_angle[1] */
+              else if (letter == 1U)
+                angle_idx = 2U; /* B -> Servo_angle[2] */
+              else
+                angle_idx = 0U; /* C -> Servo_angle[0] */
+              ServoBus_SetAngle(Servo_angle[angle_idx]);
+              t2_servo_first_sent = 1U;
+              t2_servo_index = 1U;
+              t2_servo_count = 0U;
+            }
+            else if (t2_servo_count >= 120U)
+            {
+              letter = Task2_GetSchemeTrophy(qr_task2_number, t2_servo_index);
+              if (letter == 0U)
+                angle_idx = 1U; /* A -> Servo_angle[1] */
+              else if (letter == 1U)
+                angle_idx = 2U; /* B -> Servo_angle[2] */
+              else
+                angle_idx = 0U; /* C -> Servo_angle[0] */
+              t2_servo_index++;
+              ServoBus_SetAngle(Servo_angle[angle_idx]);
+              t2_servo_count = 0U;
+            }
+          }
+          else if (t2_servo_index == 3U && t2_servo_count >= 160U)
+          {
+            t2_servo_index++;
+            ServoBus_SetAngle(Servo_angle[6]); /* 锁住 */
+            task2_track_speed = 0.3f;
+          }
+          else if (t2_servo_index == 4U && t2_servo_count >= 300U)
+          {
+            t2_servo_index++;
+            Servo_SetAngle(TASK2_SERVO_UP_ANGLE); /* 举高 */
+            t2_servo_count = 0U;
+            // Chassis_stop();
+            // Kalman_SetYawDeg(-10.5f);
+            Kalman_SetYawDeg(eulerAngle.yaw + 1.8f);
             task2_state = 32;
           }
         }
         else
         {
-          if (gray_flag == 0U)
-          {
-            static float task2_track_speed = 0.2f;
-            Chassis_TrackDifferential(task2_track_speed, Grey_Get_Output());
-            t2_servo_count++;
-            if (t2_servo_index < 3U)
-            {
-              /* 第 t2_servo_index 次要接的字母 = task2_scheme[qr-1][t2_servo_index]
-               * 固定槽位：A->Servo_angle[1]  B->Servo_angle[2]  C->Servo_angle[0]
-               * 节奏：刚进入 state31 立即转第 1 个字母槽位，之后每 240 个循迹周期转下一个 */
-              uint8_t letter;
-              uint8_t angle_idx;
-
-              if (t2_servo_first_sent == 0U)
-              {
-                /* 刚进入 31：立即转到第 1 个字母对应的槽位 */
-                letter = Task2_GetSchemeTrophy(qr_task2_number, 0U);
-                if (letter == 0U)
-                  angle_idx = 1U; /* A -> Servo_angle[1] */
-                else if (letter == 1U)
-                  angle_idx = 2U; /* B -> Servo_angle[2] */
-                else
-                  angle_idx = 0U; /* C -> Servo_angle[0] */
-                ServoBus_SetAngle(Servo_angle[angle_idx]);
-                t2_servo_first_sent = 1U;
-                t2_servo_index = 1U;
-                t2_servo_count = 0U;
-              }
-              else if (t2_servo_count >= 120U)
-              {
-                letter = Task2_GetSchemeTrophy(qr_task2_number, t2_servo_index);
-                if (letter == 0U)
-                  angle_idx = 1U; /* A -> Servo_angle[1] */
-                else if (letter == 1U)
-                  angle_idx = 2U; /* B -> Servo_angle[2] */
-                else
-                  angle_idx = 0U; /* C -> Servo_angle[0] */
-                t2_servo_index++;
-                ServoBus_SetAngle(Servo_angle[angle_idx]);
-                t2_servo_count = 0U;
-              }
-            }
-            else if (t2_servo_index == 3U && t2_servo_count >= 160U)
-            {
-              t2_servo_index++;
-              ServoBus_SetAngle(Servo_angle[6]); /* 锁住 */
-              task2_track_speed = 0.25f;
-            }
-            else if (t2_servo_index == 4U && t2_servo_count >= 100U)
-            {
-              t2_servo_index++;
-              Servo_SetAngle(TASK2_SERVO_UP_ANGLE); /* 举高 */
-              t2_servo_count = 0U;
-            }
-          }
-          else
-          {
-            Chassis_stop(); /* 丢线时停止，防止冲出 */
-          }
+          Chassis_stop(); /* 丢线时停止，防止冲出 */
         }
+      
       }
 
       if ((overall_task_state == 4U) && (home_flag == 0))

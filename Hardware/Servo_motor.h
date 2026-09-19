@@ -17,8 +17,8 @@
 extern uint16_t Servo_angle[7];
 #define SERVO_TASK1_ANGLE 94
 #define SERVO_TASK2_ANGLE 99
-#define TWO_ANGLE 93
-#define ONE_ANGLE 89
+#define TWO_ANGLE 91
+#define ONE_ANGLE 88
 
 
 /* 同时初始化普通 PWM 舵机和 USART3 总线舵机。 */

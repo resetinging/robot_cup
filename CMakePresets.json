@@ -1,0 +1,56 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 21,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "default",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "toolchainFile": "${sourceDir}/cmake/gcc-arm-none-eabi.cmake",
+      "cacheVariables": {
+        "CMSIS_Dvendor": "STMicroelectronics",
+        "CMSIS_Dname": "STM32F407VGTx",
+        "CMSIS_Dcore": "Cortex-M4",
+        "CMSIS_Dfpu": "SP_FPU",
+        "CMSIS_Ddsp": "NO_DSP",
+        "CMSIS_Dmpu": "MPU",
+        "CMSIS_Dendian": "Little-endian",
+        "CMSIS_Dtz": "NO_TZ",
+        "CMSIS_Tcompiler": "GCC"
+      }
+    },
+    {
+      "name": "Debug",
+      "displayName": "Debug",
+      "description": "调试构建（-Og -g3）",
+      "inherits": "default",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "Release",
+      "displayName": "Release",
+      "description": "发布构建（-Os）",
+      "inherits": "default",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "Debug",
+      "configurePreset": "Debug"
+    },
+    {
+      "name": "Release",
+      "configurePreset": "Release"
+    }
+  ]
+}
